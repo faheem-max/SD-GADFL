@@ -1,0 +1,359 @@
+# Distributed FL System - Peer Configuration
+# Deploy this file to each device at: ~/dfl/config/peer_config.yaml
+
+# ============================================================
+# ALGORITHM SELECTION (PRIMARY SETTING)
+# ============================================================
+# Select ONE algorithm:
+#   "fedavg"  - Standard Federated Averaging (baseline)
+#   "fedprox" - FedProx with proximal regularization (baseline)
+#   "sarsa"   - SARSA-based adaptive participation (R-Sync paper)
+#   "gadfl"   - Geography-Aware DFL with JSD-weighted aggregation (NEW)
+algorithm: "sd_gadfl"
+
+peers:
+  1:
+    name: peer_1
+    ip: 192.168.0.2
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_A/client_1.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_A/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_A/logs
+
+  2:
+    name: peer_2
+    ip: 192.168.0.17
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_B/client_2.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_B/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_B/logs
+
+  3:
+    name: peer_3
+    ip: 192.168.0.15
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/node_c/distributed_avg/Node_C/client_3.csv
+    models_dir: /home/node_c/distributed_avg/Node_C/models
+    logs_dir: /home/node_c/distributed_avg/Node_C/logs
+
+  4:
+    name: peer_4
+    ip: 192.168.0.4
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_D/client_4.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_D/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_D/logs
+
+  5:
+    name: peer_5
+    ip: 192.168.0.5
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_E/client_5.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_E/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_E/logs
+
+  6:
+    name: peer_6
+    ip: 192.168.0.6
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_F/client_6.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_F/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_F/logs
+
+  7:
+    name: peer_7
+    ip: 192.168.0.3
+    port: 9000
+    device_type: raspberry_pi_5
+    username: ubuntu
+    ssh_key_path: ~/.ssh/id_rsa
+    device_cores: 4
+    device_memory_mb: 8192
+    dataset_path: /home/ubuntu/distributed_avg/Node_G/client_7.csv
+    models_dir: /home/ubuntu/distributed_avg/Node_G/models
+    logs_dir: /home/ubuntu/distributed_avg/Node_G/logs
+
+# ============================================================
+# TRAINING HYPERPARAMETERS (Same for all algorithms)
+# ============================================================
+training:
+  total_rounds: 100
+  local_epochs: 3
+  batch_size: 32
+  learning_rate: 0.001
+  seed: 2024
+  val_split: 0.2
+  target_column: speed_kmh
+
+# ============================================================
+# FedProx Configuration (Used when algorithm: "fedprox")
+# ============================================================
+fedprox:
+  mu: 0.03
+
+# ============================================================
+# FedAvg Configuration (Used when algorithm: "fedavg")
+# ============================================================
+fedavg: {}
+
+# ============================================================
+# SARSA Configuration (Used when algorithm: "sarsa")
+# ============================================================
+sarsa:
+  lambda1: 2.5
+  lambda2: 1.5
+  lambda3: 2.5
+  learning_rate: 0.12
+  gamma: 0.92
+  epsilon: 0.15
+  distribution_weight_mode: "variance"
+  oracle_weights:
+    1: 0.399
+    2: 0.519
+    3: 1.000
+    4: 0.607
+    5: 0.658
+    6: 0.776
+    7: 0.608
+
+# ============================================================
+# GADFL Configuration (Used when algorithm: "gadfl")
+# ============================================================
+# GADFL = Geography-Aware Decentralized Federated Learning
+#
+# How it works:
+#   Before training (ONE TIME):
+#     1. Each agent computes speed histogram from local data (10 bins)
+#     2. Optional: Add Laplace noise for differential privacy
+#     3. Share histogram with all peers via HTTP
+#     4. Compute Jensen-Shannon Divergence (JSD) between all agent pairs
+#     5. Compute aggregation weights: softmax(-beta * JSD)
+#     6. Save weights, histogram, JSD matrix to CSV
+#
+#   Every training round:
+#     1. Everyone participates (no selective participation)
+#     2. Local FedProx training (mu controls proximal term)
+#     3. Geography-WEIGHTED aggregation (not uniform FedAvg)
+#
+# Key insight:
+#   Agents with similar geographic environments (low JSD) get higher
+#   aggregation weights. Highway agents trust other highway agents more.
+#   Urban agents trust other urban agents more.
+# ============================================================
+gadfl:
+  # FedProx proximal term for local training
+  mu: 0.03
+
+  # Number of speed histogram bins (0-90 km/h)
+  num_bins: 10
+
+  # Beta: "adaptive" = 1/mean_JSD (recommended) or fixed float
+  beta: "adaptive"
+
+  # ── CONTRIBUTION 2: Histogram Differential Privacy ─────────────────────
+  # Laplace noise on histogram before peer sharing
+  # null  = no privacy (exact histogram, default for experiments)
+  # float = epsilon (smaller = more private, less accurate)
+  #         recommended: 2.0 for sweet spot
+  dp_epsilon: null
+
+  # ── CONTRIBUTION 3: Model Differential Privacy ──────────────────────────
+  # Gaussian noise on model parameters before peer sharing
+  # Protects against gradient inversion attacks
+  # null  = no model privacy (default for experiments)
+  # float = sigma value
+  #         0.001 = very light noise, minimal accuracy impact
+  #         0.01  = moderate noise, recommended sweet spot
+  #         0.1   = heavy noise, noticeable accuracy drop
+  model_sigma: null
+
+
+# ============================================================
+# FedDkw Configuration (Used when algorithm: "feddkw")
+# ============================================================
+# FedDkw = Federated Learning with Data Distribution Knowledge
+# P2P adaptation of centralized FedDkw
+#
+# Difference from GADFL:
+#   GADFL:  JSD(own_hist, peer_hist)    pairwise distance
+#   FedDkw: KL(peer_hist || global_mean) each peer vs global
+#
+# To run: change algorithm to "feddkw" in config
+feddkw:
+  mu: 0.03          # FedProx proximal term (same as gadfl)
+  num_bins: 10      # Histogram bins (same as gadfl)
+  beta: "adaptive"  # "adaptive" = 1/mean_KL or fixed float
+
+# ============================================================
+# Hybrid-GADFL Configuration (Used when algorithm: "hybrid_gadfl")
+# ============================================================
+# Combines GADFL (JSD pairwise) + FedDkw (KL vs global)
+#
+# score_j = -beta1 × JSD(own, peer) - beta2 × KL(peer || global)
+# weight_j = softmax(score_j)
+#
+# beta1 = 1/mean_JSD (adaptive, same as GADFL)
+# beta2 = 1/mean_KL  (adaptive, same as FedDkw)
+hybrid_gadfl:
+  mu: 0.03
+  num_bins: 10
+  dp_epsilon: null      # histogram DP (same options as gadfl)
+  model_sigma: null     # model DP (same options as gadfl)
+
+# ============================================================
+# SR-GADFL Configuration (Used when algorithm: "sr_gadfl")
+# ============================================================
+# SR-GADFL = Self-Regularized Geography-Aware DFL
+#
+# Problem in standard GADFL:
+#   JSD(self, self) = 0 → self gets maximum weight (31.7%)
+#   This causes local overfitting, hurts cross-env generalization
+#
+# Fix:
+#   self-distance = alpha × mean_peer_JSD (instead of 0)
+#   Reduces self-weight from 31.7% to ~12-20%
+#   More collaborative → better Town07 generalization
+#
+# alpha values:
+#   0.0 = standard GADFL (no regularization)
+#   0.5 = moderate regularization (recommended)
+#   1.0 = self gets average peer distance
+sr_gadfl:
+  mu: 0.03
+  num_bins: 10
+  alpha: 0.5          # self-regularization strength (0.0 to 1.0)
+  dp_epsilon: null    # histogram DP
+  model_sigma: null   # model DP
+
+# ============================================================
+# G-FedDkw Configuration (Used when algorithm: "g_feddkw")
+# ============================================================
+# G-FedDkw = Geography-aware FedDkw with symmetric JSD
+#
+# Replaces KL divergence in FedDkw with symmetric JSD:
+#   FedDkw:   KL(peer || global)  asymmetric, unbounded
+#   G-FedDkw: JSD(peer, global)   symmetric,  bounded [0,0.693]
+#
+# weight_j = softmax(-beta x JSD(hist_j, global_hist))
+# beta = 1 / mean_JSD_from_global (adaptive)
+g_feddkw:
+  mu: 0.03
+  num_bins: 10
+  dp_epsilon: null
+  model_sigma: null
+
+  # ── RAW HISTOGRAM (NEW) ─────────────────────────────────────────────────
+  # Use full town raw data for AGGREGATION WEIGHTS (geographic reality)
+  # while TRAINING still uses Dirichlet-partitioned client_X.csv
+  # (realistic non-IID FL conditions preserved).
+  #
+  # Why: Dirichlet partitioning concentrates each client's data into
+  # 1-2 speed bins, distorting the apparent geographic profile
+  # (e.g. Town03/highway can appear as a slow-speed node).
+  #
+  # IMPORTANT: each node's path must point to ITS OWN town's raw file:
+  #   Node A (Client 1) -> town1_raw.csv
+  #   Node B (Client 2) -> town2_raw.csv
+  #   ... etc (different on each Pi)
+  #
+  # Set to null/empty to fall back to old behavior (Dirichlet histogram)
+  raw_histogram_path: "/home/ubuntu/distributed_avg/town1_raw.csv"
+  raw_speed_col: "speed_kmh"
+
+# ============================================================
+# T-G-FedDkw Configuration (Used when algorithm: "t_g_feddkw")
+# ============================================================
+# T-G-FedDkw = Target-aware G-FedDkw (Oracle Upper Bound)
+#
+# Uses TARGET environment histogram instead of training average.
+# Peers similar to deployment environment get higher weight.
+#
+# Use case:
+#   Known deployment environment (e.g., highway network)
+#   Operator provides expected speed distribution as prior
+#
+# Oracle interpretation:
+#   Upper bound — maximum accuracy when target dist is known
+#   G-FedDkw = practical method (uses training average)
+#   T-G-FedDkw = oracle (uses test distribution)
+t_g_feddkw:
+  mu: 0.03
+  num_bins: 10
+  target_data_path: "/home/ubuntu/distributed_avg/test_set_cleaned.csv"
+  target_speed_col: "speed_kmh"
+  dp_epsilon: null
+  model_sigma: null
+
+# ============================================================
+# SD-GADFL Configuration (Used when algorithm: "sd_gadfl")
+# ============================================================
+# SD-GADFL = Standard-Deviation weighted GADFL
+#
+# weight_j = std_j / sum(std_i)
+#   Higher local data diversity (std of speed) -> higher
+#   aggregation weight. Same global weight vector for all agents.
+#
+# Privacy: only ONE scalar (std) shared per node, instead of a
+# 10-bin histogram — simpler & more private.
+#
+# Differentiation from R-Sync (Paper 1):
+#   R-Sync uses sigma/std for PARTICIPATION decisions
+#   (synchronous barrier + SARSA RL).
+#   SD-GADFL uses std for AGGREGATION WEIGHT
+#   (decentralized P2P, static weight, no RL).
+#
+# DP: Laplace noise on the std scalar (sensitivity in km/h)
+#   dp_epsilon: 0.5 = strong, 2.0 = moderate, 5.0 = weak
+sd_gadfl:
+  mu: 0.03
+  dp_epsilon: null
+  model_sigma: null
+  dp_sensitivity: 5.0
+# ============================================================
+# NETWORK SETTINGS
+# ============================================================
+network:
+  timeout_seconds: 10
+  barrier_timeout_seconds: 30
+  retry_attempts: 2
+  min_peers_required_percent: 0.3
+  poll_interval_seconds: 0.5
+
+# ============================================================
+# LOGGING CONFIGURATION
+# ============================================================
+logging:
+  level: INFO
+  csv_log_interval: 1
+  enable_console: true
+  enable_file: true
