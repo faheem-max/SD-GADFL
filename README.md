@@ -23,6 +23,7 @@ SD-GADFL/
 │   └── sync_utils.py
 │
 └── README.md
+```
 Code Execution Guidelines
 
 Before executing the code, ensure that all required files are placed in the correct directories.
