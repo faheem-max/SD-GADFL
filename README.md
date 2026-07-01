@@ -1,7 +1,5 @@
 
-## README-ready Version
 
-You can paste this directly into your `README.md`:
 
 ```markdown
 # SD-GADFL
